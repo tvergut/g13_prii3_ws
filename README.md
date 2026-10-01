@@ -17,7 +17,7 @@ sudo apt install ros-humble-desktop python3-colcon-common-extensions python3-ros
 
 ```bash
 source /opt/ros/humble/setup.bash
-git clone <URL_DEL_REPOSITORIO> g13_prii3_ws
+git clone https://github.com/tvergut/g13_prii3_ws.git g13_prii3_ws
 cd g13_prii3_ws
 rosdep install --from-paths src --ignore-src -y
 colcon build
