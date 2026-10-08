@@ -18,7 +18,7 @@ source install/setup.bash
 ## Ejecutar
 
 ```bash
-ros2 launch g13_prii3_turtlesim draw_number_launch.py
+ros2 launch g13_prii3_turtlesim draw_number.launch.py
 ```
 
 ## Servicios
