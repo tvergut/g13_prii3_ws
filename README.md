@@ -1,6 +1,9 @@
 # g13_prii3_ws
 
-PRII3 - Grupo 13 - Sprint 1. La tortuga de turtlesim dibuja el 13.
+PRII3 - Grupo 13.
+
+- Sprint 1: la tortuga de turtlesim dibuja el 13.
+- Sprint 2: el TurtleBot3 hace en Gazebo la trayectoria del 13.
 
 Necesita Ubuntu 22.04 y ROS 2 Humble.
 
@@ -28,3 +31,11 @@ ros2 service call /draw/stop std_srvs/srv/Trigger
 ros2 service call /draw/resume std_srvs/srv/Trigger
 ros2 service call /draw/restart std_srvs/srv/Trigger
 ```
+
+## Sprint 2
+
+```bash
+ros2 launch g13_prii3_move_turtlebot draw_number.launch.py
+```
+
+Con `sim:=false` no lanza Gazebo (para el robot real). Los servicios son los mismos.
