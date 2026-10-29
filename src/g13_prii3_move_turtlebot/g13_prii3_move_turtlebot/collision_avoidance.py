@@ -1,4 +1,5 @@
 import math
+import time
 
 import rclpy
 from rclpy.node import Node
@@ -10,9 +11,10 @@ ESCALA = 0.1
 VEL_LINEAL = 0.1
 VEL_ANGULAR = 0.5
 PERIODO = 0.1
-DIST_PARADA = 0.6
-DIST_LIBRE = 1.0
-ANGULO = math.radians(15)
+DIST_PARADA = 0.4
+DIST_LIBRE = 0.6
+ANGULO = math.radians(10)
+GIRO_LIDAR = math.pi
 
 # (metros hacia delante, giro en radianes)
 STEPS = [
@@ -70,7 +72,7 @@ class CollisionAvoidanceNode(Node):
     def scan_callback(self, msg):
         validos = []
         for i, r in enumerate(msg.ranges):
-            ang = msg.angle_min + i * msg.angle_increment
+            ang = msg.angle_min + i * msg.angle_increment - GIRO_LIDAR
             ang = math.atan2(math.sin(ang), math.cos(ang))
             if abs(ang) < ANGULO and msg.range_min < r < msg.range_max:
                 validos.append(r)
@@ -106,9 +108,16 @@ def main(args=None):
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
-        node.cmd_pub.publish(Twist())
+        pass
+    try:
+        for _ in range(5):
+            node.cmd_pub.publish(Twist())
+            time.sleep(0.05)
+    except Exception:
+        pass
     node.destroy_node()
-    rclpy.try_shutdown()
+    if rclpy.ok():
+        rclpy.shutdown()
 
 
 if __name__ == '__main__':
