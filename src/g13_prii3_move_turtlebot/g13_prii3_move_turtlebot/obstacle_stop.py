@@ -1,16 +1,16 @@
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Twist
-from nav_msgs.msg import Odometry
 from sensor_msgs.msg import LaserScan
 from gazebo_msgs.srv import DeleteEntity, SpawnEntity
 
 VELOCIDAD = 0.15
 DIST_PARADA = 0.6
 DIST_LIBRE = 1.0
-META_X = 2.5
-TICKS_SPAWN = 50
+CUBO_X = 2.0
+TICKS_SPAWN = 20
 TICKS_ESPERA = 50
+TICKS_FIN = 100
 
 CUBO = """<sdf version="1.6">
   <model name="cubo">
@@ -33,22 +33,18 @@ class ObstacleStopNode(Node):
 
         self.cmd_pub = self.create_publisher(Twist, '/cmd_vel', 10)
         self.create_subscription(LaserScan, '/scan', self.scan_callback, 10)
-        self.create_subscription(Odometry, '/odom', self.odom_callback, 10)
 
         self.spawn_client = self.create_client(SpawnEntity, '/spawn_entity')
         self.delete_client = self.create_client(DeleteEntity, '/delete_entity')
+        self.spawn_client.wait_for_service()
+        self.delete_client.wait_for_service()
 
-        self.x = None
         self.frente = float('inf')
         self.estado = 'avanza'
-        self.ticks = 0
-        self.cubo_puesto = False
-        self.cubo_borrado = False
+        self.t = 0
+        self.t_estado = 0
 
         self.timer = self.create_timer(0.1, self.loop)
-
-    def odom_callback(self, msg):
-        self.x = msg.pose.pose.position.x
 
     def scan_callback(self, msg):
         n = len(msg.ranges)
@@ -60,47 +56,45 @@ class ObstacleStopNode(Node):
         req = SpawnEntity.Request()
         req.name = 'cubo'
         req.xml = CUBO
-        req.initial_pose.position.x = self.x + 1.3
+        req.initial_pose.position.x = CUBO_X
         req.initial_pose.position.z = 0.25
         req.reference_frame = 'world'
         self.spawn_client.call_async(req)
-        self.cubo_puesto = True
         self.get_logger().info('Cubo colocado')
 
     def borrar_cubo(self):
         req = DeleteEntity.Request()
         req.name = 'cubo'
         self.delete_client.call_async(req)
-        self.cubo_borrado = True
         self.get_logger().info('Cubo borrado')
 
+    def cambiar(self, estado, mensaje):
+        self.estado = estado
+        self.t_estado = self.t
+        self.get_logger().info(mensaje)
+
     def loop(self):
-        if self.x is None or self.estado == 'fin':
-            return
-
+        self.t += 1
+        espera = self.t - self.t_estado
         cmd = Twist()
-        self.ticks += 1
 
-        if self.x >= META_X:
-            self.estado = 'fin'
-            self.get_logger().info('Trayectoria completada')
-        elif self.estado == 'avanza':
+        if self.t == TICKS_SPAWN:
+            self.poner_cubo()
+
+        if self.estado == 'avanza':
             if self.frente < DIST_PARADA:
-                self.estado = 'parado'
-                self.ticks = 0
-                self.get_logger().info('Obstaculo detectado, robot detenido')
+                self.cambiar('parado', 'Obstaculo detectado, robot detenido')
             else:
                 cmd.linear.x = VELOCIDAD
-                if not self.cubo_puesto and self.ticks >= TICKS_SPAWN:
-                    self.poner_cubo()
         elif self.estado == 'parado':
-            if self.cubo_puesto and not self.cubo_borrado \
-                    and self.ticks >= TICKS_ESPERA:
+            if espera == TICKS_ESPERA:
                 self.borrar_cubo()
-            if self.frente > DIST_LIBRE and \
-                    (self.cubo_borrado or not self.cubo_puesto):
-                self.estado = 'avanza'
-                self.get_logger().info('Camino libre, el robot continua')
+            if espera > TICKS_ESPERA and self.frente > DIST_LIBRE:
+                self.cambiar('continua', 'Camino libre, el robot continua')
+        elif self.estado == 'continua':
+            cmd.linear.x = VELOCIDAD
+            if espera == TICKS_FIN:
+                self.cambiar('fin', 'Trayectoria completada')
 
         self.cmd_pub.publish(cmd)
 
